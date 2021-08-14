@@ -18,24 +18,28 @@ contract pool {
     ERC20 FEE;
     mapping(address => ownerAccount) depositOwner;
 
-    constructor(address _wag) public {
+    constructor(address _wag)  {
         WAG = ERC20(_wag);
     }
 
     function deposit(uint256 _amount) public payable {
         require(_amount > 0, "Not allow 0");
-        require(WAG.transfer(address(this), _amount), "Can't deposit WAG");
-        claimReward();
-        depositOwner[msg.sender].amount.add(_amount);
-        depositOwner[msg.sender].lastModified = now;
+        require(WAG.transferFrom(msg.sender, address(this), _amount), "Can't deposit WAG");
+        //        claimReward();
+        depositOwner[msg.sender].amount = depositOwner[msg.sender].amount.add(_amount);
+        depositOwner[msg.sender].lastModified = block.timestamp;
     }
 
-    function withdraw(uint _amount) public {
+    function getOwnerBalance() public returns(uint256 balance){
+        balance = depositOwner[msg.sender].amount;
+    }
+
+    function withdraw(uint _amount) public payable {
         require(depositOwner[msg.sender].amount >= _amount, "Balance not enough to with draw");
         require(WAG.transfer(msg.sender, _amount), "Can't withdraw WAG");
-        claimReward();
-        depositOwner[msg.sender].amount.sub(_amount);
-        depositOwner[msg.sender].lastModified = now;
+        //        claimReward();
+        depositOwner[msg.sender].amount = depositOwner[msg.sender].amount.sub(_amount);
+        depositOwner[msg.sender].lastModified = block.timestamp;
     }
 
     function getReward(address _address) public returns (uint256 rewards) {
@@ -46,8 +50,8 @@ contract pool {
 
     function claimReward() public {
         uint256 reward = getReward(msg.sender);
-        uint8 percent = (now - depositOwner[msg.sender].lastModified) % 8 hours;
+        uint256 percent = (block.timestamp - depositOwner[msg.sender].lastModified) % 8 hours;
         uint256 finalReward = reward.mul(percent);
-        FEE.transfer(msg.sender, reward);
+        FEE.transfer(msg.sender, finalReward);
     }
 }
